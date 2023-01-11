@@ -1,0 +1,12 @@
+.idea
+__pycache__
+pydata
+venv
+
+outputs/*.png
+resources/models.csv
+resources/stats.txt
+resources/*.json
+
+.env
+start.bat
