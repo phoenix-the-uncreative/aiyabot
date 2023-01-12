@@ -15,6 +15,7 @@ class SettingsCog(commands.Cog):
         return [
             model for model in settings.global_var.model_names
         ]
+
     # and for hypernetworks
 
     def hyper_autocomplete(self: discord.AutocompleteContext):
@@ -125,6 +126,13 @@ class SettingsCog(commands.Cog):
                                clip_skip: Optional[int] = 0,
                                hypernet: Optional[str] = None,
                                refresh: Optional[bool] = False):
+        hardcoded_admins = [147370122258939904]
+        if ctx.author.id not in hardcoded_admins:
+            await ctx.send_response(
+                content='Это очень мощная команда, которая может неиронично повредить мне комплюктер. Соответственно, '
+                        'пользоваться ей могу только я.\nИзвиняй. :moyai:', ephemeral=True)
+            return
+
         guild = '% s' % ctx.guild_id
         reviewer = settings.read(guild)
         # create the embed for the reply

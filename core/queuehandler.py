@@ -48,10 +48,11 @@ class UpscaleObject:
 
 # the queue object for identify (interrogate)
 class IdentifyObject:
-    def __init__(self, ctx, init_image, view):
+    def __init__(self, ctx, init_image, view, model):
         self.ctx = ctx
         self.init_image = init_image
         self.view = view
+        self.model = model
 
 
 # any command that needs to wait on processing should use the dream thread

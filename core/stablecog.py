@@ -41,9 +41,17 @@ async def update_progress(event_loop, status_message_task, s, queue_object, trie
         buffer.seek(0)
         file = discord.File(fp=buffer, filename=f'{queue_object.seed}.png')
 
+    ips = round((queue_object.steps - progress_data["state"]["sampling_step"]) / progress_data["eta_relative"], 2)
+    speed_comment = ''
+    if ips > 4:
+        speed_comment = '(this is really fucking **fast**)'
+    if ips < 1:
+        speed_comment = '(this is really fucking **slow**)'
+
     await status_message.edit(
         content=f'**Prompt**: `{queue_object.prompt}`\n**Progress**: {round(progress_data.get("progress") * 100, 2)}% '
-                f'({progress_data.get("state").get("sampling_step")}/{queue_object.steps} iterations)'
+                f'\n{progress_data.get("state").get("sampling_step")}/{queue_object.steps} iterations, '
+                f'~{ips} iterations per second {speed_comment}'
                 f'\n**Relative ETA**: {round(progress_data.get("eta_relative"), 2)} seconds',
         files=[file])
 
@@ -358,8 +366,8 @@ class StableCog(commands.Cog, name='Stable Diffusion', description='Create image
                 s.auth = (settings.global_var.api_user, settings.global_var.api_pass)
 
             status_message_task = event_loop.create_task(queue_object.ctx.channel.send(
-                f'**Prompt**: `{queue_object.prompt}`\n**Progress**: Initializing... '
-                f'({0}/{queue_object.steps} iterations)'
+                f'**Prompt**: `{queue_object.prompt}`\n**Progress**: Initializing...'
+                f'\n0/{queue_object.steps} iterations, 0.00 iterations per second'
                 f'\n**Relative ETA**: Initializing...'))
 
             def worker():

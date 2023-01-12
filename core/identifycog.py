@@ -31,9 +31,16 @@ class IdentifyCog(commands.Cog):
         description='The URL image to identify. This overrides init_image!',
         required=False,
     )
+    @option(
+        'model',
+        str,
+        description='Interrogation model (deepdanbooru for booru tags, CLIP for natural language)',
+        choices=['clip', 'deepdanbooru']
+    )
     async def dream_handler(self, ctx: discord.ApplicationContext, *,
                             init_image: Optional[discord.Attachment] = None,
-                            init_url: Optional[str]):
+                            init_url: Optional[str],
+                            model: Optional[str] = 'clip'):
 
         has_image = True
         # url *will* override init image for compatibility, can be changed here
@@ -64,12 +71,13 @@ class IdentifyCog(commands.Cog):
                 if user_already_in_queue:
                     await ctx.send_response(content=f'Please wait! You\'re queued up.', ephemeral=True)
                 else:
-                    queuehandler.GlobalQueue.identify_q.append(queuehandler.IdentifyObject(ctx, init_image, view))
+                    queuehandler.GlobalQueue.identify_q.append(
+                        queuehandler.IdentifyObject(ctx, init_image, view, model))
                     await ctx.send_response(
                         f"<@{ctx.author.id}>, I'm identifying the image!\nQueue: ``{len(queuehandler.union(*queues))}``",
                         delete_after=45.0)
             else:
-                await queuehandler.process_dream(self, queuehandler.IdentifyObject(ctx, init_image, view))
+                await queuehandler.process_dream(self, queuehandler.IdentifyObject(ctx, init_image, view, model))
                 await ctx.send_response(
                     f"<@{ctx.author.id}>, I'm identifying the image!\nQueue: ``{len(queuehandler.union(*queues))}``",
                     delete_after=45.0)
@@ -79,7 +87,8 @@ class IdentifyCog(commands.Cog):
             # construct a payload
             image = base64.b64encode(requests.get(queue_object.init_image.url, stream=True).content).decode('utf-8')
             payload = {
-                "image": 'data:image/png;base64,' + image
+                "image": 'data:image/png;base64,' + image,
+                "model": queue_object.model
             }
 
             # send normal payload to webui
