@@ -23,37 +23,43 @@ from core import viewhandler
 
 async def update_progress(event_loop, status_message_task, s, queue_object, tries):
     status_message = status_message_task.result()
-    progress_data = s.get(url=f'{settings.global_var.url}/sdapi/v1/progress').json()
+    try:
+        progress_data = s.get(url=f'{settings.global_var.url}/sdapi/v1/progress').json()
 
-    if progress_data["current_image"] is None and tries <= 10:
-        time.sleep(1)
-        event_loop.create_task(update_progress(event_loop, status_message_task, s, queue_object, tries + 1))
-        return
+        if progress_data["current_image"] is None and tries <= 10:
+            time.sleep(1)
+            event_loop.create_task(update_progress(event_loop, status_message_task, s, queue_object, tries + 1))
+            return
 
-    if progress_data["current_image"] is None and tries > 10:
-        return
+        if progress_data["current_image"] is None and tries > 10:
+            return
 
-    image = Image.open(io.BytesIO(base64.b64decode(progress_data["current_image"])))
+        image = Image.open(io.BytesIO(base64.b64decode(progress_data["current_image"])))
 
-    with contextlib.ExitStack() as stack:
-        buffer = stack.enter_context(io.BytesIO())
-        image.save(buffer, 'PNG')
-        buffer.seek(0)
-        file = discord.File(fp=buffer, filename=f'{queue_object.seed}.png')
+        with contextlib.ExitStack() as stack:
+            buffer = stack.enter_context(io.BytesIO())
+            image.save(buffer, 'PNG')
+            buffer.seek(0)
+            file = discord.File(fp=buffer, filename=f'{queue_object.seed}.png')
 
-    ips = round((queue_object.steps - progress_data["state"]["sampling_step"]) / progress_data["eta_relative"], 2)
-    speed_comment = ''
-    if ips > 4:
-        speed_comment = '(this is really fucking **fast**)'
-    if ips < 1:
-        speed_comment = '(this is really fucking **slow**)'
+        ips = round((int(queue_object.steps) - progress_data["state"]["sampling_step"]) / progress_data["eta_relative"], 2)
+        speed_comment = ''
+        if ips > 4:
+            speed_comment = '(this is really fucking **fast**)'
+        if ips < 1:
+            speed_comment = '(this is really fucking **slow**)'
 
-    await status_message.edit(
-        content=f'**Prompt**: `{queue_object.prompt}`\n**Progress**: {round(progress_data.get("progress") * 100, 2)}% '
-                f'\n{progress_data.get("state").get("sampling_step")}/{queue_object.steps} iterations, '
-                f'~{ips} iterations per second {speed_comment}'
-                f'\n**Relative ETA**: {round(progress_data.get("eta_relative"), 2)} seconds',
-        files=[file])
+        view = viewhandler.ProgressView()
+
+        await status_message.edit(
+            content=f'**Author ID**: {queue_object.ctx.author.id} ({queue_object.ctx.author.name})\n'
+                    f'**Prompt**: `{queue_object.prompt}`\n**Progress**: {round(progress_data.get("progress") * 100, 2)}% '
+                    f'\n{progress_data.get("state").get("sampling_step")}/{queue_object.steps} iterations, '
+                    f'~{ips} iterations per second {speed_comment}'
+                    f'\n**Relative ETA**: {round(progress_data.get("eta_relative"), 2)} seconds',
+            files=[file], view=view)
+    except Exception as e:
+        print('yo something broke', str(e))
 
     time.sleep(1)
     event_loop.create_task(update_progress(event_loop, status_message_task, s, queue_object, tries))
@@ -68,6 +74,7 @@ class StableCog(commands.Cog, name='Stable Diffusion', description='Create image
     @commands.Cog.listener()
     async def on_ready(self):
         self.bot.add_view(viewhandler.DrawView(self))
+        self.bot.add_view(viewhandler.ProgressView())
 
     # pulls from model_names list and makes some sort of dynamic list to bypass Discord 25 choices limit
     def model_autocomplete(self: discord.AutocompleteContext):
@@ -366,6 +373,7 @@ class StableCog(commands.Cog, name='Stable Diffusion', description='Create image
                 s.auth = (settings.global_var.api_user, settings.global_var.api_pass)
 
             status_message_task = event_loop.create_task(queue_object.ctx.channel.send(
+                f'**Author ID**: {queue_object.ctx.author.id} ({queue_object.ctx.author.name})\n'
                 f'**Prompt**: `{queue_object.prompt}`\n**Progress**: Initializing...'
                 f'\n0/{queue_object.steps} iterations, 0.00 iterations per second'
                 f'\n**Relative ETA**: Initializing...'))

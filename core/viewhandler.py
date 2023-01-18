@@ -1,5 +1,7 @@
 import discord
 import random
+
+import requests
 from discord.ui import InputText, Modal, View
 
 from core import queuehandler
@@ -123,7 +125,8 @@ class DrawModal(Modal):
                         fixed_short = short.replace('\\', '_').replace('/', '_')
                         try:
                             # try to look for shorthand model name first (no extension or hash)
-                            pen[3] = [k for k, v in settings.global_var.simple_model_pairs.items() if v == fixed_short][0]
+                            pen[3] = [k for k, v in settings.global_var.simple_model_pairs.items() if v == fixed_short][
+                                0]
                         except:
                             pen[3] = short
                         model_found = True
@@ -245,9 +248,37 @@ class DrawModal(Modal):
             else:
                 if self.input_tuple[3] != '':
                     settings.global_var.send_model = True
-                await queuehandler.process_dream(draw_dream, queuehandler.DrawObject(*prompt_tuple, DrawView(prompt_tuple)))
+                await queuehandler.process_dream(draw_dream,
+                                                 queuehandler.DrawObject(*prompt_tuple, DrawView(prompt_tuple)))
                 await interaction.response.send_message(
                     f'<@{interaction.user.id}>, {settings.messages()}\nQueue: ``{len(queuehandler.union(*queues))}``{prompt_output}')
+
+
+# view that holds the interrupt button for progress
+class ProgressView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        custom_id="button-interrupt",
+        emoji="❌"
+    )
+    async def interrupt(self, button, interaction):
+        try:
+            if str(interaction.user.id) not in interaction.message.content:
+                await interaction.response.send_message("пошёл нахуй это не твоё", ephemeral=True)
+                return
+            button.disabled = True
+            await interaction.response.send_message("Interrupting...", ephemeral=True)
+            s = requests.Session()
+            s.post(url=f'{settings.global_var.url}/sdapi/v1/interrupt')
+            await interaction.message.delete()
+        except Exception as e:
+            button.disabled = True
+            await interaction.response.send_message("I have no idea why, but I broke. Either the request has fallen "
+                                                    "through "
+                                                    "or I no longer have the message in my cache.\n"
+                                                    f"Good luck:\n`{str(e)}`", ephemeral=True)
 
 
 # creating the view that holds the buttons for /draw output
