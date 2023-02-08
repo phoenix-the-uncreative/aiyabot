@@ -48,7 +48,6 @@ class GlobalVar:
     api_user: Optional[str] = None
     api_pass: Optional[str] = None
     model_info = {}
-    size_range = range(192, 1088, 64)
     sampler_names = []
     style_names = {}
     facefix_models = []
